@@ -29,11 +29,6 @@ export async function POST(request) {
       stream: !!stream
     };
 
-    // Add top_k if supported and provided
-    if (top_k !== undefined) {
-      openaiRequestBody.top_k = top_k;
-    }
-
     // Add response_format if provided
     if (response_format) {
       openaiRequestBody.response_format = response_format;

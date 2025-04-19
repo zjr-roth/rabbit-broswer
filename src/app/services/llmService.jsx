@@ -7,7 +7,7 @@
 const DEFAULT_LLM_OPTIONS = {
     temperature: 0.9,  // Higher temperature for more creativity
     top_p: 0.95,       // Sample from top 95% probability mass
-    top_k: 40,         // Consider top 40 tokens
+    // top_k: 40,         // Consider top 40 tokens
     max_tokens: 1000,  // Maximum tokens in response
     model: "gpt-4o-mini" // Default model
   };
@@ -23,13 +23,6 @@ const DEFAULT_LLM_OPTIONS = {
       relatedThoughts: `Based on this expanded response, generate 4 thoughtful follow-up questions or ideas that would naturally extend this conversation. Each should be concise (under 15 words), thought-provoking, and directly related to the content. Format your response as a JSON array of strings without any additional text or explanation.`
     };
 
-    // Preview versions (shorter)
-    const previewPrompts = {
-      expansion: `Provide a brief 1-2 sentence preview summarizing how you would expand on this idea`,
-      contrarian: `Provide a brief 1-2 sentence preview of a counterintuitive or opposing view to this idea`,
-      synapse: `Provide a brief 1-2 sentence preview of a concept, metaphor, or idea from a different domain that relates to`,
-      deeper: `Provide a brief 1-2 sentence preview of a deeper analysis of this idea`
-    };
 
     // Select the appropriate base prompt
     const promptBase = previewOnly ? previewPrompts[type] || previewPrompts.expansion : basePrompts[type] || basePrompts.expansion;
@@ -299,7 +292,7 @@ const DEFAULT_LLM_OPTIONS = {
         model: "gpt-4o-mini", // Explicitly use a capable model if needed
         temperature: 0.8, // Slightly lower temp for more focused thoughts
         max_tokens: 200, // Should be enough for 4 short thoughts in JSON
-        response_format: { type: "json_object" }, // Request JSON format if API supports it
+        // response_format: { type: "json_object" }, // Request JSON format if API supports it
       };
 
       // Get response

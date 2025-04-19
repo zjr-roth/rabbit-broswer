@@ -548,24 +548,13 @@ function App() {
   // --- Render ---
   return (
     <div className={`window-wrapper ${isDarkMode ? 'dark' : 'light'}`}>
-      <div className='title-bar'>
-        <span>Rabbit</span>
-      </div>
       <div className={`app-container ${isDarkMode ? 'dark' : 'light'}`}>
-        {/* API Warning (if not configured) */}
-        {apiStatus.checked && !apiStatus.configured && (
-          <div className="api-warning">
-            <p><FiAlertTriangle /> {apiStatus.message}</p>
-            <p>Please add OPENAI_API_KEY to your .env file (not NEXT_PUBLIC_OPENAI_API_KEY)</p>
-          </div>
-        )}
-
         {/* Main conversation thread area */}
         <div className="thread-layout" ref={wrapperRef}>
           {conversationThread.length === 0 && (
             <div className="empty-conversation">
-              <h2>Welcome to Rabbit</h2>
-              <p>Drop a thought below to start exploring different perspectives.</p>
+                <h2>Welcome to Rabbit</h2>
+                <p>Drop a thought below to start exploring different perspectives.</p>
             </div>
           )}
 
