@@ -5,8 +5,8 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
-    // Check if API key is configured
-    const API_KEY = process.env.OPENAI_API_KEY;
+    // Check if API key is configured (check both potential environment variables)
+    const API_KEY = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
     if (!API_KEY) {
       return NextResponse.json(

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiClock, FiX, FiChevronRight } from 'react-icons/fi';
+import { FiClock, FiX } from 'react-icons/fi';
 
 /**
  * HistorySidebar component that slides in from the right side of the screen
@@ -77,7 +77,6 @@ const HistorySidebar = ({
                         {formatTime(entry.timestamp)}
                       </div>
                     </div>
-                    <FiChevronRight className="history-item-icon" />
                   </div>
                 </li>
               ))}

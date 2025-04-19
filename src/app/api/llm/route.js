@@ -10,8 +10,8 @@ export async function POST(request) {
     const requestData = await request.json();
     const { prompt, stream, model, temperature, top_p, top_k, max_tokens, response_format } = requestData;
 
-    // Verify API key is configured
-    const API_KEY = process.env.OPENAI_API_KEY;
+    // Verify API key is configured - check both potential environment variable names
+    const API_KEY = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
     if (!API_KEY) {
       return NextResponse.json(
         { error: 'API key not configured' },
