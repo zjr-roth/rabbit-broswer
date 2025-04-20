@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { withCors } from '../../../middleware/cors';
 
 /**
  * API route handler to check API status and configuration
+ * Protected with CORS to prevent unauthorized access
  */
-export async function GET() {
+async function statusRouteHandler(request) {
   try {
-    // Check if API key is configured (check both potential environment variables)
     const API_KEY = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
     if (!API_KEY) {
@@ -15,7 +16,7 @@ export async function GET() {
           configured: false,
           message: 'API key not configured'
         },
-        { status: 200 } // Return 200 even for configuration issues
+        { status: 200 } // Changed to 200 to indicate the request was processed
       );
     }
 
@@ -38,3 +39,6 @@ export async function GET() {
     );
   }
 }
+
+
+export const GET = withCors(statusRouteHandler);

@@ -303,9 +303,9 @@ function App() {
     } finally {
       setIsGenerating(false);
     }
-  }, [input, isGenerating, llmSettings, history, selectedPersona, usePersona, apiStatus.configured]);
+  }, [input, isGenerating, history, selectedPersona, usePersona, apiStatus.configured]);
 
-  // Handle card click to expand/collapse
+  // FIXED: Handle card click to expand/collapse with correct parameter order
   const handleCardClick = useCallback(async (section, threadIndex) => {
     if (typeof threadIndex !== 'number' || !section) return;
 
@@ -352,13 +352,15 @@ function App() {
 
       let finalContent = '';
       try {
-        // Generate full content via streaming
+        console.log(`Generating content for ${section} with streaming enabled`);
+
+        // FIXED: Generate full content via streaming with CORRECT PARAMETER ORDER
         finalContent = await llmService.generateFullContent(
-          section,
-          currentThreadEntry.input,
-          llmSettings,
-          personaToUse,
-          (chunk, fullResponse) => {
+          section,                   // The content type
+          currentThreadEntry.input,  // The user input
+          personaToUse,              // Persona (correctly positioned)
+          (chunk, fullResponse) => { // onChunk callback function
+            console.log(`Received chunk of ${chunk.length} characters`);
             // Update streaming content in state progressively
             setConversationThread(prevThread => {
               const updatedThread = [...prevThread];
@@ -371,11 +373,13 @@ function App() {
           }
         );
 
+        console.log(`Content generation complete for ${section}`);
+
         // --- Content Generation Finished ---
         // Now generate related thoughts using the final content
         let relatedThoughtsResult = [];
         if (finalContent && finalContent.trim().length > 0) {
-            relatedThoughtsResult = await llmService.generateRelatedThoughts(finalContent, llmSettings);
+            relatedThoughtsResult = await llmService.generateRelatedThoughts(finalContent);
         } else {
             console.warn("Full content generation resulted in empty content, skipping related thoughts.");
         }
@@ -437,7 +441,7 @@ function App() {
         currentThreadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
 
-  }, [conversationThread, expandedSection, expandedThreadIndex, llmSettings]);
+  }, [conversationThread, expandedSection, expandedThreadIndex]);
 
   // Handle closing an expanded card
   const handleCloseCard = useCallback(() => {
