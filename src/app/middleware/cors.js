@@ -5,7 +5,7 @@
 
 // List of allowed origins that can access the API
 // Get from environment variable or use defaults
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://rabbix.xyz')
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://tryrabbit.xyz,https://www.tryrabbit.xyz')
   .split(',')
   .map(origin => origin.trim());
 
