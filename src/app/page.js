@@ -243,7 +243,7 @@ function App() {
   const generateResponses = useCallback(async (inputText) => {
     // Don't proceed if API is not configured
     if (!apiStatus.configured) {
-      alert('API key not configured. Please set OPENAI_API_KEY in your .env file.');
+      alert('API key not configured. Please set ANTHROPIC_API_KEY in your .env file.');
       return;
     }
 
