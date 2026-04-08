@@ -7,14 +7,14 @@ import { withCors } from '../../../middleware/cors';
  */
 async function statusRouteHandler(request) {
   try {
-    const API_KEY = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    const API_KEY = process.env.ANTHROPIC_API_KEY;
 
     if (!API_KEY) {
       return NextResponse.json(
         {
           status: 'error',
           configured: false,
-          message: 'API key not configured'
+          message: 'Anthropic API key not configured'
         },
         { status: 200 } // Changed to 200 to indicate the request was processed
       );
@@ -24,7 +24,7 @@ async function statusRouteHandler(request) {
       {
         status: 'ok',
         configured: true,
-        message: 'API configured correctly'
+        message: 'Claude API configured correctly'
       },
       { status: 200 }
     );

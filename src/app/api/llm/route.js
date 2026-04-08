@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { withCors } from '../../middleware/cors';
 import serverConfig from '../../services/serverConfig';
+import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * API route handler for LLM requests
- * With improved streaming support and debugging
+ * API route handler for LLM requests using Claude
+ * With streaming support
  */
 async function llmRouteHandler(request) {
   try {
@@ -31,7 +32,7 @@ async function llmRouteHandler(request) {
     const safeContentType = contentType || 'default';
 
     // Verify API key is configured
-    const API_KEY = process.env.OPENAI_API_KEY;
+    const API_KEY = process.env.ANTHROPIC_API_KEY;
     if (!API_KEY) {
       return NextResponse.json(
         { error: 'API key not configured' },
@@ -39,80 +40,86 @@ async function llmRouteHandler(request) {
       );
     }
 
-    // Use stream parameter directly from request - don't override it
+    // Initialize Anthropic client
+    const anthropic = new Anthropic({
+      apiKey: API_KEY,
+    });
+
+    // Use stream parameter directly from request
     const shouldStream = !!stream;
     console.log(`Processing ${safeContentType} request, streaming: ${shouldStream}`);
 
     // Build request body using server-side configuration
-    const openaiRequestBody = serverConfig.buildOpenAIRequestBody(
+    const claudeRequestBody = serverConfig.buildClaudeRequestBody(
       userInput,
       safeContentType,
       personaId,
       shouldStream
     );
 
-    // Configure API endpoint
-    const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions';
-
-    // Make request to OpenAI
-    const openaiResponse = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify(openaiRequestBody)
-    });
-
     // Handle streaming response
     if (shouldStream) {
       console.log("Streaming mode active, preparing stream response");
 
-      // Ensure the response is ok before streaming
-      if (!openaiResponse.ok) {
-        console.error(`OpenAI API error: ${openaiResponse.status}`);
-        const errorData = await openaiResponse.json().catch(() => ({}));
+      try {
+        // Create streaming message
+        const stream = await anthropic.messages.create({
+          ...claudeRequestBody,
+          stream: true,
+        });
+
+        // Create a transform stream to handle the Claude stream
+        const transformStream = new TransformStream();
+        const writer = transformStream.writable.getWriter();
+
+        // Process Claude stream
+        streamClaudeResponse(stream, writer).catch(error => {
+          console.error("Stream processing error:", error);
+          writer.abort(error);
+        });
+
+        // Create a streaming response
+        const response = new NextResponse(transformStream.readable);
+
+        // Add critical headers for streaming
+        response.headers.set('Content-Type', 'text/event-stream');
+        response.headers.set('Cache-Control', 'no-cache');
+        response.headers.set('Connection', 'keep-alive');
+        response.headers.set('Transfer-Encoding', 'chunked');
+        response.headers.set('X-Accel-Buffering', 'no');
+
+        return response;
+      } catch (error) {
+        console.error('Claude API streaming error:', error);
         return NextResponse.json(
-          { error: errorData.error?.message || `OpenAI API error: ${openaiResponse.status}` },
-          { status: openaiResponse.status }
+          { error: error.message || 'Error from Claude API' },
+          { status: 500 }
         );
       }
-
-      // Direct streaming implementation
-      const transformStream = new TransformStream();
-      const writer = transformStream.writable.getWriter();
-
-      // Pipe the OpenAI response directly
-      streamOpenAIResponse(openaiResponse.body, writer).catch(error => {
-        console.error("Stream processing error:", error);
-        writer.abort(error);
-      });
-
-      // Create a streaming response
-      const response = new NextResponse(transformStream.readable);
-
-      // Add critical headers for streaming
-      response.headers.set('Content-Type', 'text/event-stream');
-      response.headers.set('Cache-Control', 'no-cache');
-      response.headers.set('Connection', 'keep-alive');
-      response.headers.set('Transfer-Encoding', 'chunked');
-      response.headers.set('X-Accel-Buffering', 'no'); // Prevents Nginx buffering
-
-      return response;
     }
 
     // Handle non-streaming response
-    const data = await openaiResponse.json();
+    try {
+      const message = await anthropic.messages.create(claudeRequestBody);
 
-    if (data.error) {
-      console.error('OpenAI API error:', data.error);
+      // Transform Claude response to match expected format
+      const response = {
+        id: message.id,
+        model: message.model,
+        content: message.content[0]?.text || '',
+        role: message.role,
+        stop_reason: message.stop_reason,
+        usage: message.usage
+      };
+
+      return NextResponse.json(response);
+    } catch (error) {
+      console.error('Claude API error:', error);
       return NextResponse.json(
-        { error: data.error.message || 'Error from OpenAI API' },
+        { error: error.message || 'Error from Claude API' },
         { status: 500 }
       );
     }
-
-    return NextResponse.json(data);
   } catch (error) {
     console.error('Error in LLM API route:', error);
     return NextResponse.json(
@@ -123,34 +130,50 @@ async function llmRouteHandler(request) {
 }
 
 /**
- * Stream chunks from OpenAI directly to the client
- * @param {ReadableStream} openaiStream - The OpenAI response stream
+ * Stream chunks from Claude to the client in SSE format
+ * @param {Stream} claudeStream - The Claude response stream
  * @param {WritableStreamDefaultWriter} writer - The writer for the output stream
  */
-async function streamOpenAIResponse(openaiStream, writer) {
-  const reader = openaiStream.getReader();
+async function streamClaudeResponse(claudeStream, writer) {
+  const encoder = new TextEncoder();
   let counter = 0;
 
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        console.log(`Stream completed after ${counter} chunks`);
-        await writer.close();
-        break;
-      }
-
-      // Write each chunk immediately without processing
-      await writer.write(value);
+    for await (const event of claudeStream) {
       counter++;
 
-      if (counter <= 3 || counter % 20 === 0) {
-        console.log(`Streamed chunk #${counter}, size: ${value.length} bytes`);
+      // Handle different event types from Claude
+      if (event.type === 'content_block_delta') {
+        // Extract text from delta
+        const text = event.delta?.text || '';
+
+        if (text) {
+          // Format as SSE compatible with OpenAI format
+          const sseData = {
+            choices: [{
+              delta: {
+                content: text
+              }
+            }]
+          };
+
+          const sseMessage = `data: ${JSON.stringify(sseData)}\n\n`;
+          await writer.write(encoder.encode(sseMessage));
+
+          if (counter <= 3 || counter % 20 === 0) {
+            console.log(`Streamed chunk #${counter}`);
+          }
+        }
+      } else if (event.type === 'message_stop') {
+        // Send [DONE] marker
+        await writer.write(encoder.encode('data: [DONE]\n\n'));
+        console.log(`Stream completed after ${counter} events`);
       }
     }
+
+    await writer.close();
   } catch (error) {
-    console.error('Error streaming response:', error);
+    console.error('Error streaming Claude response:', error);
     writer.abort(error);
   }
 }

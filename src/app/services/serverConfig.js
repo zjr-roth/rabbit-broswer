@@ -4,8 +4,8 @@
  */
 
 // Default configuration values
-const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'gpt-4o-mini';
-const DEFAULT_MAX_TOKENS = parseInt(process.env.DEFAULT_MAX_TOKENS || '1000');
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || 'claude-sonnet-4-6-20250929';
+const DEFAULT_MAX_TOKENS = parseInt(process.env.DEFAULT_MAX_TOKENS || '4096');
 const DEFAULT_TEMPERATURE = parseFloat(process.env.DEFAULT_TEMPERATURE || '0.7');
 const DEFAULT_TOP_P = parseFloat(process.env.DEFAULT_TOP_P || '0.95');
 
@@ -48,8 +48,7 @@ const PRESETS = {
     model: DEFAULT_MODEL,
     temperature: 0.3, // Lower temperature for more deterministic output
     top_p: 0.7,
-    max_tokens: 500,
-    response_format: { type: "json_object" }
+    max_tokens: 500
   }
 };
 
@@ -173,14 +172,14 @@ function buildPrompt(userInput, contentType, personaId = null) {
 }
 
 /**
- * Build the OpenAI API request body
+ * Build the Claude API request body
  * @param {string} userInput - The user's input text (not the full prompt)
  * @param {string} contentType - Type of content being generated
  * @param {string} personaId - ID of the persona to use (optional)
  * @param {boolean} stream - Whether to enable streaming response
- * @returns {Object} - Complete request body for OpenAI API
+ * @returns {Object} - Complete request body for Claude API
  */
-function buildOpenAIRequestBody(userInput, contentType, personaId = null, stream = false) {
+function buildClaudeRequestBody(userInput, contentType, personaId = null, stream = false) {
   // Get configuration based on content type
   const config = getConfigForContentType(contentType);
 
@@ -188,9 +187,9 @@ function buildOpenAIRequestBody(userInput, contentType, personaId = null, stream
   const completePrompt = buildPrompt(userInput, contentType, personaId);
 
   // Log the request for debugging
-  console.log(`Building OpenAI request for ${contentType}, streaming: ${stream}`);
+  console.log(`Building Claude request for ${contentType}, streaming: ${stream}`);
 
-  // Build the request body
+  // Build the request body for Claude API
   const requestBody = {
     model: config.model,
     messages: [{ role: "user", content: completePrompt }],
@@ -199,11 +198,6 @@ function buildOpenAIRequestBody(userInput, contentType, personaId = null, stream
     max_tokens: config.max_tokens,
     stream: !!stream
   };
-
-  // Add response_format if specified in the config
-  if (config.response_format) {
-    requestBody.response_format = config.response_format;
-  }
 
   return requestBody;
 }
@@ -228,7 +222,7 @@ function getAvailablePersonas() {
 export default {
   getPresetConfig,
   getConfigForContentType,
-  buildOpenAIRequestBody,
+  buildClaudeRequestBody,
   buildPrompt,
   getAvailablePresets,
   getAvailablePersonas,
