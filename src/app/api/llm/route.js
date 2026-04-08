@@ -3,6 +3,11 @@ import { withCors } from '../../middleware/cors';
 import serverConfig from '../../services/serverConfig';
 import Anthropic from '@anthropic-ai/sdk';
 
+// Configure route for streaming (prevents timeout on Vercel)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Maximum duration in seconds for streaming
+
 /**
  * API route handler for LLM requests using Claude
  * With streaming support
@@ -137,10 +142,16 @@ async function llmRouteHandler(request) {
 async function streamClaudeResponse(claudeStream, writer) {
   const encoder = new TextEncoder();
   let counter = 0;
+  let textChunks = 0;
 
   try {
     for await (const event of claudeStream) {
       counter++;
+
+      // Log all event types for debugging
+      if (counter <= 5) {
+        console.log(`Event #${counter}: type=${event.type}`);
+      }
 
       // Handle different event types from Claude
       if (event.type === 'content_block_delta') {
@@ -148,6 +159,7 @@ async function streamClaudeResponse(claudeStream, writer) {
         const text = event.delta?.text || '';
 
         if (text) {
+          textChunks++;
           // Format as SSE compatible with OpenAI format
           const sseData = {
             choices: [{
@@ -160,21 +172,27 @@ async function streamClaudeResponse(claudeStream, writer) {
           const sseMessage = `data: ${JSON.stringify(sseData)}\n\n`;
           await writer.write(encoder.encode(sseMessage));
 
-          if (counter <= 3 || counter % 20 === 0) {
-            console.log(`Streamed chunk #${counter}`);
+          if (textChunks <= 3 || textChunks % 20 === 0) {
+            console.log(`Streamed text chunk #${textChunks}`);
           }
         }
       } else if (event.type === 'message_stop') {
         // Send [DONE] marker
         await writer.write(encoder.encode('data: [DONE]\n\n'));
-        console.log(`Stream completed after ${counter} events`);
+        console.log(`Stream completed: ${counter} total events, ${textChunks} text chunks`);
       }
     }
 
+    // Ensure we close the writer after the stream ends
     await writer.close();
+    console.log('Writer closed successfully');
   } catch (error) {
     console.error('Error streaming Claude response:', error);
-    writer.abort(error);
+    try {
+      await writer.abort(error);
+    } catch (abortError) {
+      console.error('Error aborting writer:', abortError);
+    }
   }
 }
 
